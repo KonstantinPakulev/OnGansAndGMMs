@@ -23,4 +23,5 @@ There is also a number of interesting experiments, which can be conducted:
 ## Team members
 - Konstantin Pakulev
 - Alisa Alenicheva
+- Olga Tsimboy
 
