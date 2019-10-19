@@ -1,11 +1,12 @@
 import os
+from argparse import ArgumentParser
 
 import torch
 from torch.optim.adam import Adam
 from torch.utils.data.dataloader import DataLoader
 from torchvision.transforms import transforms, ToPILImage, ToTensor, RandomCrop, Resize
 
-from source.celeba_datasets import CelebaDataset, FlattenTransform, TRAIN, VAL
+from source.celeba_dataset import CelebaDataset, FlattenTransform, TRAIN, VAL
 from source.mfa_utils import get_dataset_mean_and_std, gmm_initial_guess, get_random_samples, \
     RUN_DIR, INIT_GMM_FILE, SAVED_GMM_FILE
 from source.mfa_torch import get_log_likelihood, init_raw_parms_from_gmm, raw_to_gmm
@@ -13,6 +14,11 @@ from source.mfa import MFA
 
 
 if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument("--dataset_root", type=str)
+
+    args = parser.parse_args()
+
     NUM_COMPONENTS = 200
     LATENT_DIMENSION = 10
     INIT_METHOD = 'km'
@@ -20,9 +26,9 @@ if __name__ == "__main__":
     BATCH_SIZE = 150
 
     LR = 1e-4
-    NUM_EPOCHS = 20
+    NUM_EPOCHS = 2
 
-    DATASET_ROOT = '/home/konstantin/datasets'
+    DATASET_ROOT = args.dataset_root
 
     train_transforms = transforms.Compose([
         ToPILImage(),

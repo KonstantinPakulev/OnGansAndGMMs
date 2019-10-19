@@ -11,7 +11,7 @@ from torch.utils.data.dataloader import DataLoader
 from torchvision.transforms import transforms, ToPILImage, ToTensor, Resize
 
 from source.mfa import MFA
-from source.celeba_datasets import CelebaDataset, FlattenTransform, TRAIN
+from source.celeba_dataset import CelebaDataset, FlattenTransform, TRAIN
 
 RUN_DIR = './run'
 
