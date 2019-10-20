@@ -25,3 +25,11 @@ There is also a number of interesting experiments, which can be conducted:
 - Alisa Alenicheva
 - Olga Tsimboy
 
+## MFA
+### Training
+To train MFA from scratch you need to specify ```dataset_root``` parameter in [mfa_train.sh](mfa_train.sh). The root folder should contain folder with aligned and cropped images and train/val/test partitioning. Refer [dataset page](http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html) for more info.
+
+### Evaluation
+Download the [pre-trained MFA model](https://drive.google.com/open?id=1CdSbcTV-zK55vVi3tZ-tXy0zGynZkIwp) or train it yourself.<br>
+Edit ```path_to_model``` parameter in the thrid cell of the notebook and run it.
+
