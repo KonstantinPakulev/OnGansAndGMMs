@@ -2,7 +2,7 @@ import math
 import numpy as np
 import torch
 
-from source import mfa
+from source.mfa.mfa import MFA
 
 
 def init_raw_parms_np(K, d, l):
@@ -42,7 +42,7 @@ def raw_to_gmm(PI, MU, A, D, raw_as_log=False):
             components[i] = {'pi': pi_vals[i], 'mu': MU[i, ...], 'A': A[i, ...], 'D': np.exp(-1.0 * D[i])}
         else:
             components[i] = {'pi': pi_vals[i], 'mu': MU[i, ...], 'A': A[i, ...], 'D': np.power(D[i], 2.0)}
-    return mfa.MFA(components)
+    return MFA(components)
 
 
 def get_per_components_log_likelihood(X, PI_logits, MU, A, sqrt_D):

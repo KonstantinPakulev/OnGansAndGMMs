@@ -10,8 +10,8 @@ from sklearn.cluster import KMeans
 from torch.utils.data.dataloader import DataLoader
 from torchvision.transforms import transforms, ToPILImage, ToTensor, Resize
 
-from source.mfa import MFA
-from source.celeba_dataset import CelebaDataset, FlattenTransform, TRAIN
+from source.mfa.mfa import MFA
+from source.mfa.celeba_dataset import CelebaDataset, FlattenTransform, TRAIN
 
 RUN_DIR = './run'
 
@@ -149,12 +149,19 @@ def plot_figures(figures, nrows=1, ncols=1, size=None):
     plt.tight_layout()  # optional
 
 
-def sample_from_mfa_and_plot(mfa, grid_size=3, image_size=(64, 64), fig_size=(18, 18)):
+def from_torch_to_numpy(image, image_size):
+    if len(image.shape) == 2:
+        b = image.shape[0]
+    else:
+        b = 1
+    return image.reshape([b, 3, image_size[0], image_size[1]]).transpose([0, 2, 3, 1]).clip(0, 1)
+
+
+def sample_from_mfa_and_plot(mfa, grid_size=8, image_size=(64, 64), fig_size=(18, 18)):
     num_samples = grid_size ** 2
 
     samples = mfa.draw_samples(num_samples, False)
-    samples = samples.reshape([samples.shape[0], 3, image_size[0], image_size[1]]).\
-        transpose([0, 2, 3, 1]).clip(0, 1)
+    samples = from_torch_to_numpy(samples, image_size)
 
     figures = {}
     for i in range(num_samples):
@@ -162,3 +169,49 @@ def sample_from_mfa_and_plot(mfa, grid_size=3, image_size=(64, 64), fig_size=(18
 
     plot_figures(figures, grid_size, grid_size, fig_size)
 
+
+def visualize_component(gmm, components=[0, 1], image_size=[64, 64]):
+    h, w = image_size[0], image_size[1]
+    l = 4
+
+    print(f"Visualization of {l} latent dimensions of {len(components)} components")
+
+    plt.figure(figsize=(18, 18))
+
+    for i, c_i in enumerate(components):
+        c = gmm.components[c_i]
+
+        samples = np.ones([l + 1, h, w * 3 + 2, 3], dtype=float)
+
+        samples[0, :, w // 2:w // 2 + w, :] = from_torch_to_numpy(c['mu'], image_size)
+        noise_std = np.sqrt(c['D'])
+        noise_std /= np.max(noise_std)
+        samples[0, :, w // 2 + w:w // 2 + 2 * w, :] = from_torch_to_numpy(noise_std, image_size)
+
+        # Then the directions and the noise variance
+        for j in range(l):
+            samples[j + 1, :, :w, :] = from_torch_to_numpy((c['mu'] + 2 * c['A'][:, j]), image_size)
+            samples[j + 1, :, 2 * (w + 1):, :] = from_torch_to_numpy((c['mu'] - 2 * c['A'][:, j]), image_size)
+            samples[j + 1, :, w + 1:2 * w + 1, :] = from_torch_to_numpy((0.5 + 2 * c['A'][:, j]), image_size)
+
+        for j in range(samples.shape[0]):
+            plt.subplot(samples.shape[0], len(components), j * len(components) + i + 1)
+            plt.imshow(np.squeeze(samples[j, ...]))
+            plt.axis('off')
+
+
+def visualize_component_change(gmm, components, dimensions, image_size=[64, 64]):
+    grid_size = 5
+
+    c1, c2 = gmm.components[components[0]], gmm.components[components[1]]
+    d1, d2 = dimensions[0], dimensions[1]
+    lin = np.linspace(-2, 2, grid_size)
+
+    figures = {}
+
+    for i, l_i in enumerate(lin):
+        for j, l_j in enumerate(lin):
+            figures[str(i) + str(j)] = from_torch_to_numpy(c1['mu'] + l_i * c1['A'][:, d1] + l_j * c2['A'][:, d2],
+                                                           image_size)[0]
+
+    plot_figures(figures, grid_size, grid_size, size=(18, 18))

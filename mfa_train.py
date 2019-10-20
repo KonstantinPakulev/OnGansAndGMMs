@@ -6,24 +6,27 @@ from torch.optim.adam import Adam
 from torch.utils.data.dataloader import DataLoader
 from torchvision.transforms import transforms, ToPILImage, ToTensor, RandomCrop, Resize
 
-from source.celeba_dataset import CelebaDataset, FlattenTransform, TRAIN, VAL
-from source.mfa_utils import get_dataset_mean_and_std, gmm_initial_guess, get_random_samples, \
+from source.mfa.celeba_dataset import CelebaDataset, FlattenTransform, TRAIN, VAL
+from source.mfa.mfa_utils import get_dataset_mean_and_std, gmm_initial_guess, get_random_samples, \
     RUN_DIR, INIT_GMM_FILE, SAVED_GMM_FILE
-from source.mfa_torch import get_log_likelihood, init_raw_parms_from_gmm, raw_to_gmm
-from source.mfa import MFA
+from source.mfa.mfa_torch import get_log_likelihood, init_raw_parms_from_gmm, raw_to_gmm
+from source.mfa.mfa import MFA
 
 
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--dataset_root", type=str)
+    parser.add_argument("--method", type=str)
+    parser.add_argument("--num_components", type=int)
 
     args = parser.parse_args()
 
-    NUM_COMPONENTS = 200
+    NUM_COMPONENTS = args.num_components
     LATENT_DIMENSION = 10
     INIT_METHOD = 'km'
+    DIM_METHOD = args.method
 
-    BATCH_SIZE = 150
+    BATCH_SIZE = 64
 
     LR = 1e-4
     NUM_EPOCHS = 2
@@ -52,7 +55,6 @@ if __name__ == "__main__":
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=True)
 
     init_gmm_path = os.path.join(RUN_DIR, INIT_GMM_FILE)
-    saved_gmm_path = os.path.join(RUN_DIR, SAVED_GMM_FILE)
 
     if not os.path.exists(RUN_DIR):
         os.mkdir(RUN_DIR)
@@ -72,7 +74,8 @@ if __name__ == "__main__":
         init_samples = get_random_samples(DATASET_ROOT, init_n).detach().numpy()
         init_gmm = gmm_initial_guess(init_samples, NUM_COMPONENTS, LATENT_DIMENSION,
                                      clustering_method=INIT_METHOD,
-                                     component_model='fa', dataset_std=init_std, default_noise_std=0.15)
+                                     component_model=DIM_METHOD,
+                                     dataset_std=init_std, default_noise_std=0.15)
 
         init_gmm.save(init_gmm_path)
 
@@ -121,5 +124,6 @@ if __name__ == "__main__":
                                G_MU.cpu().detach().numpy(),
                                G_A.cpu().detach().numpy(),
                                G_D.cpu().detach().numpy())
+        saved_gmm_path = os.path.join(RUN_DIR, f"e{i + 1}_{DIM_METHOD}_{NUM_COMPONENTS}_{SAVED_GMM_FILE}")
         saved_gmm.save(saved_gmm_path)
 
