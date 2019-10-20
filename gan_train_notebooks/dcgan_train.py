@@ -285,7 +285,7 @@ for epoch in range(STARTED_EPOCH,NUM_EPOCHS+STARTED_EPOCH):
         g_loss.backward()
         D_G_z2 = output.mean().item()
         g_optimizer.step()
-        g_loss_epoch.append(g_loss)
+        g_loss_epoch.append(g_loss.item())
         # Output training stats
         if i % 50 == 0:
             print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.8f / %.8f'
@@ -314,4 +314,4 @@ for epoch in range(STARTED_EPOCH,NUM_EPOCHS+STARTED_EPOCH):
                 torch.save(model.D.state_dict(), os.path.join(LOG_PATH,str(iters)+'_discriminator.ckpt'))
 
         iters += 1
-    early_stopping(np.mean(g_loss_epoch.numpy()), model)
+    early_stopping(np.mean(g_loss_epoch), model)
