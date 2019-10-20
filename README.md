@@ -31,5 +31,5 @@ To train MFA from scratch you need to specify ```dataset_root``` parameter in [m
 
 ### Evaluation
 Download the [pre-trained MFA model](https://drive.google.com/open?id=1CdSbcTV-zK55vVi3tZ-tXy0zGynZkIwp) or train it yourself.<br>
-Edit ```path_to_model``` parameter in the thrid cell of the notebook and run it.
+Edit ```path_to_model``` parameter in the thrid cell of [mfa_eval.ipynb](mfa_eval.ipynb) and run it.
 
