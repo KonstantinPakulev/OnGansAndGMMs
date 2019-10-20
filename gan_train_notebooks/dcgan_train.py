@@ -9,11 +9,42 @@ from IPython.display import HTML
 import torch.nn as nn
 import torch.optim as optim
 import os
+from tensorboardX import SummaryWriter
 
+from argparse import ArgumentParser
 
+parser = ArgumentParser()
+parser.add_argument("-e", "--epochs", dest="NUM_EPOCHS",
+                    help="number of train epochs",default = 25,type=int)
+parser.add_argument("-p", "--patience",
+                    dest="PATIENCE", default=15,
+                    help="number of epochs to wait before early stopping",type=int)
+parser.add_argument("-b", "--batch_size",
+                    dest="BATCH_SIZE", default=128,
+                    help="size of train and test batches",type=int)
+parser.add_argument("-t", "--train_num",
+                    dest="TRAIN_NUM", default=0,
+                    help="number of training current model",type=int)
+parser.add_argument("-l", "--learn_rate",
+                    dest="LEARN_RATE", default=2e-4,
+                    help="leraning rate for optimizer",type=float)
+parser.add_argument("-i", "--iter_start",
+                    dest="STARTED_ITER", default=0,
+                    help="started training iteration",type=int)
+parser.add_argument("-s", "--epoch_start",
+                    dest="STARTED_EPOCH", default=0,
+                    help="started training epoch",type=int)
+parser.add_argument("-c", "--continue_train",
+                    dest="RETRAIN", default=False,
+                    help="train continue flag",type=bool)
+
+args = parser.parse_args()
+
+# Training number
+TRAIN_NUM=args.TRAIN_NUM
 
 # Batch size during training
-BATCH_SIZE = 128
+BATCH_SIZE = args.BATCH_SIZE
 
 #Size of preprocessed image
 PICTURE_SIZE = 64
@@ -28,27 +59,39 @@ GENERATOR_PARAMETER = 64
 DISCRIMINATOR_PARAMETER = 64
 
 # Number of epochs to train
-NUM_EPOCHS = 25
+NUM_EPOCHS = args.NUM_EPOCHS
+
+# Started epoch
+STARTED_EPOCH = args.STARTED_EPOCH
+
+# Started iteration
+STARTED_ITER = args.STARTED_ITER
 
 # Learning rate for optimizers
 lr = 0.0002
 
 # Path for logs
-LOG_PATH = './dcgan_train_process_1'
+LOG_PATH = './dcgan_train_process_2'
 os.makedirs(LOG_PATH,exist_ok=True)
 
 # Path for dataset
 DATA_PATH = './data'
 
+# Retrain flag
+RETRAIN=args.RETRAIN
+
+# Early Stopping patience
+PATIENCE = args.PATIENCE
+
 
 
 # Log files
-log_discriminator = open(os.path.join(LOG_PATH,'log_discriminator.txt'),'w')
+log_discriminator = open(os.path.join(LOG_PATH,str(TRAIN_NUM)+'_log_discriminator.txt'),'w')
 log_discriminator.close()
-log_generator = open(os.path.join(LOG_PATH,'log_generator.txt'),'w')
+log_generator = open(os.path.join(LOG_PATH,str(TRAIN_NUM)+'_log_generator.txt'),'w')
 log_generator.close()
 
-
+writer=SummaryWriter(LOG_PATH)
 
 transform = transforms.Compose(
     [transforms.CenterCrop(178),
@@ -136,8 +179,14 @@ def weights_init(m):
         
 model = DCGAN(GENERATOR_PARAMETER, DISCRIMINATOR_PARAMETER,Z_LATENT,device)
 
-model.G.apply(weights_init)
-model.D.apply(weights_init)
+if RETRAIN:
+    checkpoint = torch.load(os.path.join(LOG_PATH,'31799_generator.ckpt'))
+    model.G.load_state_dict(checkpoint)
+    checkpoint = torch.load(os.path.join(LOG_PATH,'31799_discriminator.ckpt'))
+    model.D.load_state_dict(checkpoint)
+else:
+    model.G.apply(weights_init)
+    model.D.apply(weights_init)
 
 criterion = nn.BCELoss()
 
@@ -153,12 +202,59 @@ g_optimizer = optim.Adam(model.G.parameters(), lr=lr, betas=(0.5, 0.999))
 
 # Training Loop
 
-# Lists to keep track of progress
-iters = 0
+iters = STARTED_ITER
+
+class EarlyStopping:
+    """Early stops the training if validation loss doesn't improve after a given patience."""
+    def __init__(self, patience=7, verbose=False,model_path='./'):
+        """
+        Args:
+            patience (int): How long to wait after last time validation loss improved.
+                            Default: 7
+            verbose (bool): If True, prints a message for each validation loss improvement. 
+                            Default: False
+        """
+        self.patience = patience
+        self.verbose = verbose
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+        self.val_loss_min = np.Inf
+        self.model_path=model_path
+
+    def __call__(self, val_loss, model):
+        
+        global MODEL_PATH
+
+        score = -val_loss
+
+        if self.best_score is None:
+            self.best_score = score
+            self.save_checkpoint(val_loss, model)
+        elif score < self.best_score:
+            self.counter += 1
+            print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+            if self.counter >= self.patience:
+                self.early_stop = True
+        else:
+            self.best_score = score
+            self.save_checkpoint(val_loss, model)
+            self.counter = 0
+
+    def save_checkpoint(self, val_loss, model):
+        '''Saves model when validation loss decrease.'''
+        if self.verbose:
+            print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
+        torch.save(model.G.state_dict(), os.path.join(self.model_path,'best_generator.ckpt'))
+        torch.save(model.D.state_dict(), os.path.join(self.model_path,'best_discriminator.ckpt'))
+        self.val_loss_min = val_loss
 
 print("Train has started")
 
-for epoch in range(NUM_EPOCHS):
+early_stopping = EarlyStopping(patience=PATIENCE, verbose=True,model_path=LOG_PATH)
+
+for epoch in range(STARTED_EPOCH,NUM_EPOCHS+STARTED_EPOCH):
+    g_loss_epoch=[]
     for i, data in enumerate(trainloader, 0):
         data,_= data
         model.D.zero_grad()
@@ -189,7 +285,7 @@ for epoch in range(NUM_EPOCHS):
         g_loss.backward()
         D_G_z2 = output.mean().item()
         g_optimizer.step()
-
+        g_loss_epoch.append(g_loss)
         # Output training stats
         if i % 50 == 0:
             print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.8f / %.8f'
@@ -199,20 +295,23 @@ for epoch in range(NUM_EPOCHS):
             norm = plt.Normalize(vmin=data.min(), vmax=data.max())
             image = (norm(data))
             plt.imsave(os.path.join(LOG_PATH,'current_res.png'), image)
-        with open(os.path.join(LOG_PATH,'log_discriminator.txt'),'a') as f:
+        with open(os.path.join(LOG_PATH,str(TRAIN_NUM)+'_log_discriminator.txt'),'a') as f:
             f.write(str(epoch)+'\t'+str(i)+'\t'+str(d_loss.item())+'\n')
-        with open(os.path.join(LOG_PATH,'log_generator.txt'),'a') as f:
+        with open(os.path.join(LOG_PATH,str(TRAIN_NUM)+'_log_generator.txt'),'a') as f:
             f.write(str(epoch)+'\t'+str(i)+'\t'+str(g_loss.item())+'\n')
 
-
+        writer.add_scalar('/Loss/Generator', g_loss.item(), iters)
+        writer.add_scalar('/Loss/Discriminator', d_loss.item(), iters)
+        
         # Check how the generator is doing by saving G's output on fixed_noise
-        if (iters % 10 == 0) or ((epoch == NUM_EPOCHS-1) and (i == len(trainloader)-1)):
+        if (iters % 10 == 0) or ((epoch == NUM_EPOCHS+STARTED_EPOCH-1) and (i == len(trainloader)-1)):
             with torch.no_grad():
                 fake = model.G(generator_eval).detach().cpu()
             image = np.transpose(vutils.make_grid(fake, padding=2, normalize=True).numpy(),(1,2,0))
             plt.imsave(os.path.join(LOG_PATH,str(iters)+'.png'), image)
-            if (iters % 500 == 0) or ((epoch == NUM_EPOCHS-1) and (i == len(trainloader)-1)):
+            if (iters % 500 == 0) or ((epoch == NUM_EPOCHS+STARTED_EPOCH-1) and (i == len(trainloader)-1)):
                 torch.save(model.G.state_dict(), os.path.join(LOG_PATH,str(iters)+'_generator.ckpt'))
                 torch.save(model.D.state_dict(), os.path.join(LOG_PATH,str(iters)+'_discriminator.ckpt'))
 
         iters += 1
+    early_stopping(np.mean(g_loss_epoch.numpy()), model)
