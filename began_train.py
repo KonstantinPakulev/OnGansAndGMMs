@@ -10,6 +10,7 @@ import torch.nn as nn
 import torch.optim as optim
 import os
 import torch.nn.functional as F
+from torch.autograd import Variable
 from tensorboardX import SummaryWriter
 
 from argparse import ArgumentParser
@@ -27,7 +28,7 @@ parser.add_argument("-t", "--train_num",
                     dest="TRAIN_NUM", default=0,
                     help="number of training current model",type=int)
 parser.add_argument("-l", "--learn_rate",
-                    dest="LEARN_RATE", default=2e-4,
+                    dest="LEARN_RATE", default=1e-4,
                     help="leraning rate for optimizer",type=float)
 parser.add_argument("-i", "--iter_start",
                     dest="STARTED_ITER", default=0,
@@ -57,7 +58,7 @@ PICTURE_SIZE = 64
 Z_LATENT = 100
 
 # Size of generator output (channels)
-GENERATOR_PARAMETER = 4
+GENERATOR_PARAMETER = 32
 
 # Number of epochs to train
 NUM_EPOCHS = args.NUM_EPOCHS
@@ -75,7 +76,7 @@ k = args.k
 lr = args.LEARN_RATE
 
 # Path for logs
-LOG_PATH = './began_train_process'
+LOG_PATH = './began_train_process_1'
 os.makedirs(LOG_PATH,exist_ok=True)
 
 # Path for dataset
@@ -129,14 +130,14 @@ class Encoder(nn.Module):
             nn.Conv2d(ndf , ndf * 2, 3, 1, 1, bias=False),
             nn.ELU(),
             
-            nn.MaxPool2d(2,2),
+            nn.AvgPool2d(2,2),
             
             nn.Conv2d(ndf * 2, ndf * 2, 3, 1, 1, bias=False), #(w-f+2p)/S+1  (64-4+2)/2+1 = 32*
             nn.ELU(),
             nn.Conv2d(ndf * 2, ndf * 3, 3, 1, 1, bias=False),#32-4+2) 
             nn.ELU(),
             
-            nn.MaxPool2d(2,2),
+            nn.AvgPool2d(2,2),
             
             nn.Conv2d(ndf * 3, ndf * 3, 3, 1, 1, bias=False), #(w-f+2p)/S+1  (64-4+2)/2+1 = 32*
             nn.ELU(),
@@ -227,15 +228,18 @@ Discriminator.to(device)
 Generator = Decoder(ndf = GENERATOR_PARAMETER, hid_dim = Z_LATENT)
 Generator.to(device)
 
+
+
 if RETRAIN:
     checkpoint = torch.load(os.path.join(LOG_PATH,str(STARTED_ITER-1)+'_generator.ckpt'))
     Generator.load_state_dict(checkpoint)
     checkpoint = torch.load(os.path.join(LOG_PATH,str(STARTED_ITER-1)+'_discriminator.ckpt'))
     Discriminator.load_state_dict(checkpoint)
 
-
+criterion = nn.L1Loss()
+    
 # Evaluation generator data
-generator_eval = torch.randn(64, Z_LATENT, device=device)
+generator_eval = torch.rand(64, Z_LATENT, device=device)
 
 
 # Setup Adam optimizers for both G and D
@@ -280,7 +284,7 @@ class EarlyStopping:
                 self.early_stop = True
         else:
             self.best_score = score
-            self.save_checkpoint(val_loss, model)
+            self.save_checkpoint(val_loss, Generator, Discriminator)
             self.counter = 0
 
     def save_checkpoint(self, val_loss, Generator, Discriminator):
@@ -304,13 +308,13 @@ for epoch in range(STARTED_EPOCH,NUM_EPOCHS+STARTED_EPOCH):
         real_data = data.to(device)
 
         output = Discriminator(real_data)
-        d_loss_real =torch.mean(torch.abs(output - real_data))
+        d_loss_real = criterion(output, real_data)
        
-        noise = torch.randn(real_data.shape[0], Z_LATENT, device=device)
+        noise = torch.rand(real_data.shape[0], Z_LATENT, device=device)
         gen_data = Generator(noise)
 
         output = Discriminator(gen_data.detach())
-        d_loss_gen = torch.mean(torch.abs(output - gen_data))
+        d_loss_gen = criterion(output,gen_data)
 
 #         for p in Discriminator.parameters():
 #                 if len(p.shape) != 2:
@@ -323,7 +327,7 @@ for epoch in range(STARTED_EPOCH,NUM_EPOCHS+STARTED_EPOCH):
         Generator.zero_grad()
         gen_data = Generator(noise)
         output = Discriminator(gen_data.detach())
-        g_loss = torch.mean(torch.abs(output - gen_data))
+        g_loss = criterion(output,gen_data)
         g_loss.backward()
 
         g_optimizer.step()
@@ -353,9 +357,26 @@ for epoch in range(STARTED_EPOCH,NUM_EPOCHS+STARTED_EPOCH):
         
         # Check how the generator is doing by saving G's output on fixed_noise
         if (iters % 100 == 0) or ((epoch == NUM_EPOCHS+STARTED_EPOCH-1) and (i == len(trainloader)-1)):
+            z = []
+            for inter in range(10):
+                z0 = np.random.uniform(-1,1,100)
+                z10 = np.random.uniform(-1,1,100)
+                def slerp(val, low, high):
+                    omega = np.arccos(np.clip(np.dot(low/np.linalg.norm(low), high/np.linalg.norm(high)), -1, 1))
+                    so = np.sin(omega)
+                    if so == 0:
+                        return (1.0-val) * low + val * high # L'Hopital's rule/LERP
+                    return np.sin((1.0-val)*omega) / so * low + np.sin(val*omega) / so * high 
+
+                z.append(z0)
+                for i in range(1, 9):
+                    z.append(slerp(i*0.1, z0, z10))
+                z.append(z10.reshape(1, 100)) 
+            z = [_.reshape(1, 100) for _ in z]
+            z_var = Variable(torch.from_numpy(np.concatenate(z, 0)).float()).to(device)
             with torch.no_grad():
-                fake = Generator(generator_eval).detach().cpu()
-            image = np.transpose(vutils.make_grid(fake, padding=2, normalize=True).numpy(),(1,2,0))
+                fake = Generator(z_var).detach().cpu()
+            image = np.transpose(vutils.make_grid(fake, padding=2, normalize=True,nrow=10).numpy(),(1,2,0))
             plt.imsave(os.path.join(LOG_PATH,str(iters)+'.png'), image)
             if (iters % 500 == 0) or ((epoch == NUM_EPOCHS+STARTED_EPOCH-1) and (i == len(trainloader)-1)):
                 torch.save(Generator.state_dict(), os.path.join(LOG_PATH,str(iters)+'_generator.ckpt'))
