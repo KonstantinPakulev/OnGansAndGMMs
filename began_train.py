@@ -76,7 +76,7 @@ k = args.k
 lr = args.LEARN_RATE
 
 # Path for logs
-LOG_PATH = './began_train_process_1'
+LOG_PATH = './began_train_process_2'
 os.makedirs(LOG_PATH,exist_ok=True)
 
 # Path for dataset
@@ -142,20 +142,30 @@ class Encoder(nn.Module):
             nn.Conv2d(ndf * 3, ndf * 3, 3, 1, 1, bias=False), #(w-f+2p)/S+1  (64-4+2)/2+1 = 32*
             nn.ELU(),
             nn.Conv2d(ndf * 3, ndf * 3, 3, 1, 1, bias=False),#32-4+2) 
+            nn.ELU(),
+        
+            nn.AvgPool2d(2,2),
+            
+            nn.Conv2d(ndf * 3, ndf * 4, 3, 1, 1, bias=False), #(w-f+2p)/S+1  (64-4+2)/2+1 = 32*
+            nn.ELU(),
+            nn.Conv2d(ndf * 4, ndf * 4, 3, 1, 1, bias=False),#32-4+2) 
             nn.ELU())
-        self.fc_enc = nn.Linear(16*16*3*ndf, hid_dim)
+        self.fc_enc = nn.Linear(8*8*4*ndf, hid_dim)
 
         self.init_params()
 
         
     def init_params(self):
         for m in self.modules():
-            if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+                nn.init.normal_(m.weight.data, 0.0, 0.02)
+            elif isinstance(m, nn.Linear):
                 nn.init.xavier_normal_(m.weight.data)
 
     def forward(self, x):
         enc_conv = self.encoder(x)
-        z = F.elu(self.fc_enc(enc_conv.view(-1,16*16*3*self.ndf)))
+#         print(enc_conv.shape)
+        z = F.elu(self.fc_enc(enc_conv.view(-1,8*8*4*self.ndf)))
         return z
     
 class Decoder(nn.Module):
@@ -164,7 +174,7 @@ class Decoder(nn.Module):
         self.ndf = ndf
         self.hid_dim = hid_dim
        # YOUR FAVORITE nn.Sequatial here
-        ngf = 3*ndf
+        ngf = 4*ndf
         self.ngf  = ngf
         self.decoder = nn.Sequential(
             nn.Conv2d(ngf, ngf, 3, 1, 1, bias=False), #(w-f+2p)/S+1  (64-4+2)/2+1 = 32*
@@ -188,21 +198,31 @@ class Decoder(nn.Module):
             nn.Conv2d(ngf, ngf, 3, 1, 1, bias=False),#32-4+2) 
             nn.ELU(),
             
+            nn.Upsample(scale_factor=2, mode='bilinear'),
+            nn.ConvTranspose2d(ngf,2*ngf,1,1,0, bias=False),
+            
+            nn.Conv2d(ngf*2, ngf, 3, 1, 1, bias=False), #(w-f+2p)/S+1  (64-4+2)/2+1 = 32*
+            nn.ELU(),
+            nn.Conv2d(ngf, ngf, 3, 1, 1, bias=False),#32-4+2) 
+            nn.ELU(),
+            
             nn.Conv2d(ngf, 3, 3, 1, 1, bias=False),
             nn.Tanh()
         )
-        self.fc_dec = nn.Linear(hid_dim, 16*16*3*ndf)
+        self.fc_dec = nn.Linear(hid_dim, 8*8*4*ndf)
 
         self.init_params()
 
         
     def init_params(self):
         for m in self.modules():
-            if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+                nn.init.normal_(m.weight.data, 0.0, 0.02)
+            elif isinstance(m, nn.Linear):
                 nn.init.xavier_normal_(m.weight.data)
                 
     def forward(self, z):
-        dec =(F.relu(self.fc_dec(z))).view(-1,3*self.ndf,16,16)
+        dec =(F.relu(self.fc_dec(z))).view(-1,4*self.ndf,8,8)
         dec_conv = self.decoder(dec)
         return dec_conv
     
@@ -222,10 +242,10 @@ class GAN(nn.Module):
     def forward(self, x):
         return self.decoder(self.encoder(x))
         
-Discriminator=GAN(ndf = GENERATOR_PARAMETER, hid_dim = Z_LATENT)
+Discriminator=GAN(ndf = GENERATOR_PARAMETER)
 Discriminator.to(device)
 
-Generator = Decoder(ndf = GENERATOR_PARAMETER, hid_dim = Z_LATENT)
+Generator = Decoder(ndf = GENERATOR_PARAMETER)
 Generator.to(device)
 
 
@@ -237,14 +257,18 @@ if RETRAIN:
     Discriminator.load_state_dict(checkpoint)
 
 criterion = nn.L1Loss()
-    
+
 # Evaluation generator data
-generator_eval = torch.rand(64, Z_LATENT, device=device)
-
-
+# generator_eval = torch.randn(64, Z_LATENT, device=device)
+# generator_eval = torch.rand(64, Z_LATENT, device=device)
+generator_eval = Variable(torch.FloatTensor(64, Z_LATENT)).to(device)
+generator_eval.uniform_(-1,1)
 # Setup Adam optimizers for both G and D
 d_optimizer = optim.Adam(Discriminator.parameters(), lr=lr, betas=(0.5, 0.999))
 g_optimizer = optim.Adam(Generator.parameters(), lr=lr, betas=(0.5, 0.999))
+
+k=0
+global_step=0
 
 # Training Loop
 
@@ -310,7 +334,8 @@ for epoch in range(STARTED_EPOCH,NUM_EPOCHS+STARTED_EPOCH):
         output = Discriminator(real_data)
         d_loss_real = criterion(output, real_data)
        
-        noise = torch.rand(real_data.shape[0], Z_LATENT, device=device)
+       noise = Variable(torch.FloatTensor(real_data.shape[0], Z_LATENT)).to(device)
+        noise.uniform_(-1,1)
         gen_data = Generator(noise)
 
         output = Discriminator(gen_data.detach())
