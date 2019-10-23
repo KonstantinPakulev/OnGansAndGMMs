@@ -1,7 +1,10 @@
 import numpy as np
+import matplotlib.pyplot as plt
+
 from scipy.stats import norm
 from sklearn.cluster import MiniBatchKMeans
-import matplotlib.pyplot as plt
+
+from source.mfa.mfa_utils import from_torch_to_numpy, plot_figures
 
 
 # images should be flatten and ndarray type.
@@ -15,7 +18,6 @@ class NDB():
         self.verbose = verbose
         self.kmeans = None
         self.train_cnts = None
-
 
     def __clustering(self):
         if self.kmeans == None:
@@ -43,6 +45,14 @@ class NDB():
         test_labels = self.kmeans.predict(whitened)
         label_vals, label_counts = np.unique(test_labels, return_counts=True)
         labels_cnt[label_vals] = label_counts
+
+        order = np.argsort(label_counts)
+
+        self.min_labels = label_vals[order][:5]
+        self.max_labels = label_vals[order][-5:]
+
+        self.test_labels = test_labels
+
         return labels_cnt
 
     def calculate(self, test_data):
@@ -81,6 +91,43 @@ class NDB():
         plt.legend(loc='best')
         plt.ylim(0.0, np.max(train_ys) * 1.3)
         plt.show()
+
+    def visualize_min_max_bins(self, test_data, image_size=[64,64], num_channels=3, id=0, mode='max'):
+        if mode == 'max':
+            max_label = self.max_labels[id]
+            cluster_mean = self.kmeans.cluster_centers_[max_label].reshape(1, -1)
+            bin_pics = test_data[self.test_labels == max_label][:24]
+
+            bin_pics = np.concatenate([cluster_mean, bin_pics], axis=0)
+            bin_pics = from_torch_to_numpy(bin_pics, image_size, num_channels)
+
+            figures = {}
+
+            for i, pic in enumerate(bin_pics):
+                if i == 0:
+                    figures["mean"] = pic
+                else:
+                    figures[i] = pic
+
+            plot_figures(figures, 5, 5, (18, 9))
+        else:
+            min_label = self.min_labels[id]
+            cluster_mean = self.kmeans.cluster_centers_[min_label].reshape(1, -1)
+            bin_pics = test_data[self.test_labels == min_label][:1]
+
+            bin_pics = np.concatenate([cluster_mean, bin_pics], axis=0)
+            bin_pics = from_torch_to_numpy(bin_pics, image_size, num_channels)
+
+            figures = {}
+
+            for i, pic in enumerate(bin_pics):
+                if i == 0:
+                    figures["mean"] = pic
+                else:
+                    figures[i] = pic
+
+            plot_figures(figures, 1, 1, (18, 4))
+
 
     def __whitening(self, data, eps=1e-3):
         mean = np.mean(data, axis=0)

@@ -151,12 +151,16 @@ def plot_figures(figures, nrows=1, ncols=1, size=None):
     plt.tight_layout()  # optional
 
 
-def from_torch_to_numpy(image, image_size):
+def from_torch_to_numpy(image, image_size, num_channels=3):
     if len(image.shape) == 2:
         b = image.shape[0]
     else:
         b = 1
-    return image.reshape([b, 3, image_size[0], image_size[1]]).transpose([0, 2, 3, 1]).clip(0, 1)
+
+    if num_channels == 3:
+        return image.reshape([b, num_channels, image_size[0], image_size[1]]).transpose([0, 2, 3, 1]).clip(0, 1)
+    else:
+        return image.reshape([b, image_size[0], image_size[1]]).clip(0, 1)
 
 
 def sample_from_mfa_and_plot(mfa, grid_size=8, image_size=(64, 64), fig_size=(18, 18)):
