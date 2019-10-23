@@ -17,7 +17,6 @@ if __name__ == "__main__":
     parser.add_argument("--dataset_root", type=str)
     parser.add_argument("--method", type=str)
     parser.add_argument("--num_components", type=int)
-    parser.add_argument("--model", type=str)
 
     args = parser.parse_args()
 
@@ -59,10 +58,7 @@ if __name__ == "__main__":
     if not os.path.exists(RUN_DIR):
         os.mkdir(RUN_DIR)
 
-    if args.model is not None:
-        init_gmm = MFA()
-        init_gmm.load(args.model)
-    elif os.path.exists(init_gmm_path):
+    if os.path.exists(init_gmm_path):
         init_gmm = MFA()
         init_gmm.load(init_gmm_path)
     else:

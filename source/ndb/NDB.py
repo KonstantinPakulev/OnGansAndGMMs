@@ -16,6 +16,7 @@ class NDB():
         self.kmeans = None
         self.train_cnts = None
 
+
     def __clustering(self):
         if self.kmeans == None:
             self.kmeans = MiniBatchKMeans(n_clusters=self.k_clusters,
@@ -69,17 +70,16 @@ class NDB():
         train_ys = train_ys[self.bin_order]
         train_dys = train_dys[self.bin_order]
 
-        # plt.bar(xs, train_ys, yerr=train_dys, label='Train')
         plt.bar(xs, height=train_dys, bottom=train_ys - SE_train, color='gray', width=1.0, label='Train')
 
         for data_leg in list_datas:
             test_ys = self.__calc_test_proportion(data_leg[0]) / data_leg[0].shape[0]
-
             test_ys = test_ys[self.bin_order]
 
             plt.plot(xs, test_ys, '--*', label=data_leg[1])
 
         plt.legend(loc='best')
+        plt.ylim(0.0, np.max(train_ys) * 1.3)
         plt.show()
 
     def __whitening(self, data, eps=1e-3):
