@@ -14,6 +14,7 @@ class NDB():
         self.verbose = verbose
         self.kmeans = None
         self.train_cnts = None
+        self.order = None
         
     def __clustering(self):
         if self.kmeans == None:
@@ -40,8 +41,33 @@ class NDB():
         test_labels = self.kmeans.predict(whitened)
         label_vals, label_counts = np.unique(test_labels, return_counts=True)
         labels_cnt[label_vals] = label_counts
+        
+        bin_order = np.argsort(-label_counts)
+        
+        self.min_labels = label_vals[bin_order][-5:]
+        self.max_labels = label_vals[bin_order][:5]
+        
+        self.test_labels = test_labels
+        
         return labels_cnt
-
+    
+    def vizaulize(self, test_data, init_data_shape, mode='max', n_pic=5):
+        
+        l_set = self.max_labels if mode == 'max' else self.min_labels
+        for l in l_set:
+          data_viz = test_data[self.test_labels == l][:n_pic]#, mnist_NDB.min_labels
+          plt.figure(figsize=(4*n_pic + 1, 4))
+          for i in range(len(data_viz)):
+            plt.subplot(1, n_pic, i + 1)
+            plt.axis('off')
+            if len(init_data_shape) == 2:
+              plt.imshow(data_viz[i].reshape(init_data_shape))#.transpose(0, 2))
+            elif len(init_data_shape) == 3:
+              plt.imshow(data_viz[i].reshape(init_data_shape).transpose(0, 2))
+          plt.show()
+          
+       
+    
     def calculate(self, test_data):
         if self.kmeans == None:
             self.__clustering()
@@ -58,14 +84,16 @@ class NDB():
         SE_train = NDB.StandardErr(self.train_cnts, self.whitened.shape[0], 
                                   self.train_cnts, self.whitened.shape[0])
         
+        order = np.argsort(-self.train_cnts)
+        
         plt.figure(figsize=(10, 5))
         plt.bar(np.arange(1, self.k_clusters + 1), 
-                self.train_cnts/self.whitened.shape[0], 
-                yerr=2*SE_train, alpha=0.5, label='Train')
+                self.train_cnts[order]/self.whitened.shape[0], 
+                yerr=2*SE_train[order], alpha=0.5, label='Train')
         
         for data_leg in list_datas:
             y = self.__calc_test_proportion(data_leg[0])
-            plt.plot(np.arange(1, self.k_clusters + 1), y/data_leg[0].shape[0], label=data_leg[1])
+            plt.plot(np.arange(1, self.k_clusters + 1), y[order]/data_leg[0].shape[0], label=data_leg[1])
         plt.legend(loc='best')
         plt.show()
       
