@@ -334,7 +334,7 @@ for epoch in range(STARTED_EPOCH,NUM_EPOCHS+STARTED_EPOCH):
         output = Discriminator(real_data)
         d_loss_real = criterion(output, real_data)
        
-       noise = Variable(torch.FloatTensor(real_data.shape[0], Z_LATENT)).to(device)
+        noise = Variable(torch.FloatTensor(real_data.shape[0], Z_LATENT)).to(device)
         noise.uniform_(-1,1)
         gen_data = Generator(noise)
 
