@@ -75,7 +75,9 @@ def gmm_initial_guess(samples, num_components, latent_dim, clustering_method='km
             if component_model == 'fa':
                 model = FactorAnalysis(latent_dim)
                 model.fit(samples[labels == i])
-                components[i] = {'A': model.components_.T, 'mu': model.mean_, 'D': model.noise_variance_,
+                components[i] = {'A': model.components_.T,
+                                 'mu': model.mean_,
+                                 'D': model.noise_variance_,
                                  'pi': np.count_nonzero(labels == i) / float(N)}
             elif component_model == 'ppca':
                 model = PCA(latent_dim)
@@ -173,8 +175,6 @@ def sample_from_mfa_and_plot(mfa, grid_size=8, image_size=(64, 64), fig_size=(18
 def visualize_component(gmm, components=[0, 1], image_size=[64, 64]):
     h, w = image_size[0], image_size[1]
     l = 4
-
-    print(f"Visualization of {l} latent dimensions of {len(components)} components")
 
     plt.figure(figsize=(18, 18))
 

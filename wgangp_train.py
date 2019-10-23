@@ -1,11 +1,6 @@
 from argparse import ArgumentParser
-import imageio
-import numpy as np
 import torch
-import torch.nn as nn
-from torchvision.utils import make_grid
 from torch.autograd import Variable
-from torch.autograd import grad
 
 from source.wgangp.celeba_utils import Celebaloader
 from source.wgangp.wgan_model import WGAN_GP
@@ -14,7 +9,6 @@ from tqdm import tqdm_notebook
 from IPython.display import clear_output
 from skimage import img_as_ubyte
 import imageio
-import numpy as np
 import matplotlib.pyplot as plt
 
 

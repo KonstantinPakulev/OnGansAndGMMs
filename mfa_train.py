@@ -12,12 +12,12 @@ from source.mfa.mfa_utils import get_dataset_mean_and_std, gmm_initial_guess, ge
 from source.mfa.mfa_torch import get_log_likelihood, init_raw_parms_from_gmm, raw_to_gmm
 from source.mfa.mfa import MFA
 
-
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--dataset_root", type=str)
     parser.add_argument("--method", type=str)
     parser.add_argument("--num_components", type=int)
+    parser.add_argument("--model", type=str)
 
     args = parser.parse_args()
 
@@ -26,10 +26,10 @@ if __name__ == "__main__":
     INIT_METHOD = 'km'
     DIM_METHOD = args.method
 
-    BATCH_SIZE = 64
+    BATCH_SIZE = 100
 
     LR = 1e-4
-    NUM_EPOCHS = 2
+    NUM_EPOCHS = 5
 
     DATASET_ROOT = args.dataset_root
 
@@ -59,7 +59,10 @@ if __name__ == "__main__":
     if not os.path.exists(RUN_DIR):
         os.mkdir(RUN_DIR)
 
-    if os.path.exists(init_gmm_path):
+    if args.model is not None:
+        init_gmm = MFA()
+        init_gmm.load(args.model)
+    elif os.path.exists(init_gmm_path):
         init_gmm = MFA()
         init_gmm.load(init_gmm_path)
     else:
@@ -126,4 +129,3 @@ if __name__ == "__main__":
                                G_D.cpu().detach().numpy())
         saved_gmm_path = os.path.join(RUN_DIR, f"e{i + 1}_{DIM_METHOD}_{NUM_COMPONENTS}_{SAVED_GMM_FILE}")
         saved_gmm.save(saved_gmm_path)
-
