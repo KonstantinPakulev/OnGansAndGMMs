@@ -34,4 +34,11 @@ Download the [pre-trained FA based GMM model](https://drive.google.com/open?id=1
 Edit ```path_to_fa_model``` and ```path_to_ppca_model``` parameters in [mfa_eval.ipynb](mfa_eval.ipynb) and run it.
 
 
+## DCGAN
+### Training
+DCGAN can pe trained by running `python3 dcgan_train.py`, there are various parameters of the model to variate: `python3 dcgan_train.py -h`
 
+
+### Evaluation
+Download the [pre-trained FA based DCGAN model](https://drive.google.com/open?id=1l0qgxEsefqVQpNG_REb3CY8h-8KvgjeT).
+Edit ```data_path``` and ```LOG_PATH``` parameters in [dcgan_eval.ipynb](dcgan_eval.ipynb) and run it.
