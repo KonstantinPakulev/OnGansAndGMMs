@@ -126,7 +126,7 @@ class NDB():
                 else:
                     figures[i] = pic
 
-            plot_figures(figures, 1, 1, (18, 4))
+            plot_figures(figures, 1, 2, (18, 4))
 
 
     def __whitening(self, data, eps=1e-3):

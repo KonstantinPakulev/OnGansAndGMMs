@@ -31,7 +31,7 @@ To train MFA from scratch you need to specify ```dataset_root``` parameter in [m
 
 ### Evaluation
 Download the [pre-trained FA based GMM model](https://drive.google.com/open?id=1CdSbcTV-zK55vVi3tZ-tXy0zGynZkIwp) or [pre-trained PPCA based GMM model](https://drive.google.com/open?id=1J792PyhOpSE2UsKEFTR1RhSw3xF1x6mO) or train them yourself.<br>
-Edit ```path_to_fa_model``` and ```path_to_ppca_model``` parameters in [mfa_eval.ipynb](mfa_eval.ipynb) and run it.
+Edit ```path_to_fa_model``` and ```path_to_ppca_model``` parameters in [mfa_eval.ipynb](notebooks/mfa_eval.ipynb) and run it.
 
 
 ## DCGAN
@@ -41,4 +41,4 @@ DCGAN can pe trained by running `python3 dcgan_train.py`, there are various para
 
 ### Evaluation
 Download the [pre-trained FA based DCGAN model](https://drive.google.com/open?id=1l0qgxEsefqVQpNG_REb3CY8h-8KvgjeT).
-Edit ```data_path``` and ```LOG_PATH``` parameters in [dcgan_eval.ipynb](dcgan_eval.ipynb) and run it.
+Edit ```data_path``` and ```LOG_PATH``` parameters in [dcgan_eval.ipynb](notebooks/dcgan_eval.ipynb) and run it.
