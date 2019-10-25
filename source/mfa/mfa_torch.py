@@ -76,3 +76,42 @@ def get_log_likelihood(X, PI, MU, A, D):
     comp_LLs = get_per_components_log_likelihood(X, PI, MU, A, D)
     LLs = torch.logsumexp(comp_LLs, dim=0)
     return LLs.sum()
+
+
+def get_max_posterior_component(X, PI, MU, A, D):
+    comp_LLs = get_per_components_log_likelihood(X, PI, MU, A, D)
+    return comp_LLs.argmax(dim=0)
+
+
+def get_latent_posterior_mean(X, c_i, MU, A, sqrt_D):
+    """
+    Calculate the posterior probability of the latent variable z given x, for selected Gaussians
+    """
+    K, d, l = A.shape
+
+    # Shapes: A[K, d, l], AT[K, l, d], iD[K, d, 1], L[K, l, l]
+    AT = A.permute(0, 2, 1)
+    iD = sqrt_D.clamp(1e-3, 1.0).pow(-2.0).view(K, d, 1)
+    L = torch.eye(l).repeat(K, 1, 1).to(X.device) + torch.bmm(AT, iD * A)
+    iL = torch.inverse(L)
+
+    # Shapes: X_c[m, d, 1], iD_c[m, d, 1]
+    X_c = (X - MU.index_select(0, c_i)).view(-1, d, 1)
+    iD_c = iD.index_select(0, c_i).view(-1, d, 1)
+    m_d_1 = (iD_c * X_c) - ((iD_c * A.index_select(0, c_i)) @ iL.index_select(0, c_i)) @ (AT.index_select(0, c_i) @ (iD_c * X_c))
+    mu_z = AT.index_select(0, c_i) @ m_d_1
+    return mu_z
+
+
+def generate_from_posterior(X, PI_logits, MU, A, sqrt_D):
+    K, d, l = A.shape
+
+    # Find the most probable components for each sample
+    c_i = get_max_posterior_component(X, PI_logits, MU, A, sqrt_D)
+
+    # Calculate the posterior mean z values and use them to generate samples from the model
+    z_mu_i = get_latent_posterior_mean(X, c_i, MU, A, sqrt_D)
+
+    # Generate new samples from the posterior mean (ignoring the posterior covariance)
+    sample = A.index_select(0, c_i) @ z_mu_i + MU.index_select(0, c_i).view(-1, d, 1)
+    return sample.view(sample.shape[0], -1)
