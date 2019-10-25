@@ -15,6 +15,8 @@ def Inception_Score(images_set, model_predictor, device = torch.device("cuda:0" 
         Model that extract feature vector of the image for calculating KL divergence
     n : int
         Number of splits of images set
+    bs : int
+        Batch size
     Returns
     -------
     IS : float
