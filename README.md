@@ -42,3 +42,13 @@ DCGAN can pe trained by running `python3 dcgan_train.py`, there are various para
 ### Evaluation
 Download the [pre-trained FA based DCGAN model](https://drive.google.com/open?id=1l0qgxEsefqVQpNG_REb3CY8h-8KvgjeT).
 Edit ```data_path``` and ```LOG_PATH``` parameters in [dcgan_eval.ipynb](notebooks/dcgan_eval.ipynb) and run it.
+
+## pix2pix
+## Training 
+For training pix2pix CGAN from scratch in [pix2pix_train.sh](pix2pix_train.sh) specify two parameters: ```dataset_root``` (which points to CelebA) and ```mfa_model_path``` (which points to trained MFA model). Alternatively, you can download pre-trained pix2pix model from [here](https://drive.google.com/open?id=1YIGKFxAnNnxmueZihugNzlk7v0i7Bp-I).
+
+## Evaluation
+Launch pix2pix [evaluation notebook](notebooks/pix2pix_eval.ipynb) and replace variable responsible for CelebA dataset path and trained pix2pix model path.
+
+
+
