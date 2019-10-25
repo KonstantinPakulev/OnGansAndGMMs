@@ -2,6 +2,7 @@ from torch.utils.data import DataLoader
 import torch
 import numpy as np
 import torch.nn.functional as F
+from scipy.linalg import sqrtm
 
 def Frеchet_Inception_Distance(orig_images, gen_images, model_predictor, device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu"),bs = 100):
     """
@@ -50,10 +51,15 @@ def Frеchet_Inception_Distance(orig_images, gen_images, model_predictor, device
     orig_mean = orig_predictions.mean(axis = 0)
     gen_mean = gen_predictions.mean(axis = 0)
     
+    
+    
     orig_cov = np.cov(orig_predictions,rowvar=False)
     gen_cov = np.cov(gen_predictions,rowvar=False)
     
-    mean_dist = np.linalg.norm(orig_mean - gen_mean)
-    cov_dist = np.trace(orig_cov+ gen_cov-2*np.sqrt(orig_cov@gen_cov+1e-6))
+    mean_dist = ((orig_mean - gen_mean)**2).sum()
+    cov_dist = np.trace(orig_cov+ gen_cov-2*sqrtm(orig_cov@gen_cov))
+    if np.iscomplexobj(cov_dist):
+        cov_dist = cov_dist.real
+        
     
     return mean_dist+cov_dist
